@@ -1,0 +1,72 @@
+---
+- name: Check checksum
+  become: yes
+  hosts: localhost
+
+  vars:
+
+    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
+    jenkins_user: ${login}
+    jenkins_password: ${password}
+    whl_test_dest: /ansible/test/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /ansible/elevator_task-0.0.1-py3-none-any.whl
+
+  tasks:
+
+    - name: Make test dir
+      file:
+        path: /ansible/test
+        state: directory
+
+    - name: Intsall url
+      uri:
+        url: "{{ jenkins_host }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        dest: "{{ whl_test_dest }}"
+        method: GET
+        force_basic_auth: yes
+        return_content: true
+
+    - name: Install wheel package
+      shell: |
+        cd /ansible/test
+        pip3 install elevator_task-0.0.1-py3-none-any.whl
+
+    - name: Get checksum of test file
+      stat:
+        path: "{{ whl_test_dest }}"
+        checksum: sha1
+        get_checksum: yes
+      register: test_file_checksum
+
+    - name: Test SHA
+      set_fact:
+         testsha1: "{{ test_file_checksum.stat.checksum }}"
+
+    - name: Get checksum of existing file
+      stat:
+        path: "{{ whl_dest }}"
+        checksum: sha1
+        get_checksum: yes
+      register: exist_file_checksum
+
+    - name: Exist SHA
+      set_fact:
+        existsha1: "{{ exist_file_checksum.stat.checksum }}"
+
+    - name: Comparing if equal
+      when: testsha1 == existsha1
+      shell: |
+        cd /ansible
+        sudo rm -r test
+
+    - name: Comparing if not equal
+      when: testsha1 != existsha1
+      shell: |
+        cd /ansible
+        sudo rm elevator_task-0.0.1-py3-none-any.whl
+        cd /ansible/test
+        mv elevator_task-0.0.1-py3-none-any.whl /ansible
+        cd /ansible
+        sudo chmod 777 elevator_task-0.0.1-py3-none-any.whl

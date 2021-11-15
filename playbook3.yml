@@ -1,0 +1,36 @@
+--- 
+- name: Triggering
+  become: yes
+  hosts: localhost
+
+  vars:
+    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
+    jenkins_user: ${login}
+    jenkins_password: ${password}
+    whl_dest: /ansible/elevator_task-0.0.1-py3-none-any.whl
+
+  tasks:
+    - name: Check artifact url
+      uri:
+        url: "{{ jenkins_host }}"
+        user: "{{ jenkins_login }}"
+        password: "{{ jenkins_password }}"
+        method: HEAD
+        force_basic_auth: yes
+        return_content: yes
+      register: url_check
+
+    - block:
+
+        - name: URL doesn't exist
+          command: exit
+
+      when: url_check.status <= 0
+
+    - block:
+
+        - name:  URL exist
+          command: ansible-playbook playbook.yml
+
+      when: url_check.status > 0
+        
