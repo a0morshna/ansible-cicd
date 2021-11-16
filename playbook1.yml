@@ -8,14 +8,14 @@
     jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_test_dest: /ansible/test/elevator_task-0.0.1-py3-none-any.whl
-    whl_dest: /ansible/elevator_task-0.0.1-py3-none-any.whl
+    whl_test_dest: /git-ansible/ansible-cicd/test/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /git-ansible/ansible-cicd/elevator_task-0.0.1-py3-none-any.whl
 
   tasks:
 
     - name: Make test dir
       file:
-        path: /ansible/test
+        path: /git-ansible/ansible-cicd/test
         state: directory
 
     - name: Intsall url
@@ -30,7 +30,7 @@
 
     - name: Install wheel package
       shell: |
-        cd /ansible/test
+        cd /ansible-cicd/test
         pip3 install elevator_task-0.0.1-py3-none-any.whl
 
     - name: Get checksum of test file
@@ -58,15 +58,15 @@
     - name: Comparing if equal
       when: testsha1 == existsha1
       shell: |
-        cd /ansible
+        cd /git-ansible/ansible-cicd
         sudo rm -r test
 
     - name: Comparing if not equal
       when: testsha1 != existsha1
       shell: |
-        cd /ansible
+        cd /git-ansible/ansible-cicd
         sudo rm elevator_task-0.0.1-py3-none-any.whl
-        cd /ansible/test
+        cd /git-ansible/ansible-cicd/test
         mv elevator_task-0.0.1-py3-none-any.whl /ansible
-        cd /ansible
+        cd /git-ansible/ansible-cicd
         sudo chmod 777 elevator_task-0.0.1-py3-none-any.whl

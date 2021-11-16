@@ -8,7 +8,7 @@
     jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_dest: /ansible/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /git-ansible/ansible/elevator_task-0.0.1-py3-none-any.whl
 
   tasks:
     - name: Intsall url

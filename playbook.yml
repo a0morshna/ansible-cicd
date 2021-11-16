@@ -38,7 +38,7 @@
   hosts: localhost
 
   vars:
-    whl_dest: /ansible/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /ansible-cicd/elevator_task-0.0.1-py3-none-any.whl
 
   tasks:
     - name: Check if .whl exist in this folder
