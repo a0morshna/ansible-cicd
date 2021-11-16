@@ -30,7 +30,7 @@
 
     - name: Install wheel package
       shell: |
-        cd /ansible-cicd/test
+        cd /git-ansible/ansible-cicd/test
         pip3 install elevator_task-0.0.1-py3-none-any.whl
 
     - name: Get checksum of test file
