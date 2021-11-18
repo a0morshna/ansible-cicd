@@ -32,6 +32,7 @@
       executable: pip3
       state: latest
 
+
 - name: Checking
   become: yes
   hosts: localhost
