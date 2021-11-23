@@ -38,9 +38,31 @@
   hosts: localhost
 
   vars:
-    whl_dest: /ansible-cicd/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /ansible-cicd/"{{ latest_artifact }}"
 
   tasks:
+
+    - name: Intsall url
+      uri:
+        url: "{{ jenkins_host }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        dest: "{{ whl_dest }}"
+        method: GET
+        force_basic_auth: yes
+        return_content: yes
+      register: list_artifact
+
+    - name: Write in json
+      copy:
+        content="{{ list_artifact }}"
+        dest=/ansible-cicd/list.json
+
+    - name: Get list
+      shell: |
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" list.json | awk '!a[$0]++' > list.txt
+      register: latest_artifact
+
     - name: Check if .whl exist in this folder
       stat:
         path: "{{ whl_dest }}"

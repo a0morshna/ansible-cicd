@@ -5,10 +5,10 @@
   hosts: localhost
 
   vars:
-    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
+    jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/api/json?tree=artifacts%5BrelativePath$
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_dest: /git-ansible/ansible-cicd/elevator_task-0.0.1-py3-none-any.whl
+    whl_dest: /ansible-cicd/"{{ latest_artifact }}"
 
   tasks:
     - name: Intsall url
@@ -20,6 +20,17 @@
         method: GET
         force_basic_auth: yes
         return_content: yes
+      register: list_artifact
+
+    - name: Write in json
+      copy:
+        content="{{ list_artifact }}"
+        dest=/ansible-cicd/list.json
+
+    - name: Get list
+      shell: |
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" list.json | awk '!a[$0]++' > list.txt
+      register: latest_artifact
 
     - name: Install wheel package
-      command: pip3 install elevator_task-0.0.1-py3-none-any.whl
+      command: pip3 install "{{ latest_artifact }}"

@@ -5,17 +5,17 @@
 
   vars:
 
-    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/artifact/dist/elevator_task-0.0.1-py3-none-any.whl
+    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/api/json?tree=artifacts%5BrelativePath$
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_test_dest: /git-ansible/ansible-cicd/test/elevator_task-0.0.1-py3-none-any.whl
-    whl_dest: /git-ansible/ansible-cicd/elevator_task-0.0.1-py3-none-any.whl
+    whl_test_dest: /ansible-cicd/test/"{{ latest_artifact }}"
+    whl_dest: /ansible-cicd/"{{ latest_artifact }}"
 
   tasks:
 
     - name: Make test dir
       file:
-        path: /git-ansible/ansible-cicd/test
+        path: /ansible-cicd/test
         state: directory
 
     - name: Intsall url
@@ -23,15 +23,26 @@
         url: "{{ jenkins_host }}"
         user: "{{ jenkins_user }}"
         password: "{{ jenkins_password }}"
-        dest: "{{ whl_test_dest }}"
+        dest: "{{ whl_dest }}"
         method: GET
         force_basic_auth: yes
-        return_content: true
+        return_content: yes
+      register: list_artifact
+
+    - name: Write in json
+      copy:
+        content="{{ list_artifact }}"
+        dest=/ansible-cicd/list.json
+
+    - name: Get list
+      shell: |
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" list.json | awk '!a[$0]++' > list.txt
+      register: latest_artifact
 
     - name: Install wheel package
       shell: |
-        cd /git-ansible/ansible-cicd/test
-        pip3 install elevator_task-0.0.1-py3-none-any.whl
+        cd /ansible-cicd/
+        pip3 install "{{ latest_artifact }}"
 
     - name: Get checksum of test file
       stat:
@@ -58,15 +69,13 @@
     - name: Comparing if equal
       when: testsha1 == existsha1
       shell: |
-        cd /git-ansible/ansible-cicd
+        cd /ansible-cicd
         sudo rm -r test
 
     - name: Comparing if not equal
       when: testsha1 != existsha1
       shell: |
-        cd /git-ansible/ansible-cicd
-        sudo rm elevator_task-0.0.1-py3-none-any.whl
-        cd /git-ansible/ansible-cicd/test
-        mv elevator_task-0.0.1-py3-none-any.whl /ansible
-        cd /git-ansible/ansible-cicd
-        sudo chmod 777 elevator_task-0.0.1-py3-none-any.whl
+        cd /ansible-cicd
+        sudo rm "{{ latest_artifact }}"
+        cd /ansible-cicd/test
+        mv "{{ latest_artifact }}" /ansible
