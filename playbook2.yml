@@ -1,36 +1,71 @@
 ---
 
+- name: Getting variables
+  become: yes
+  hosts: localhost
+
+  vars:
+    jenkins_host:  http://${jenkins-test_public_ip}/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
+    jenkins_user: ${login}
+    jenkins_password: ${password}
+    whl_dest: /ansible-cicd/files/
+
+  tasks:
+
+    - name: Make files dir
+      file:
+        path: /ansible-cicd/files
+        state: directory
+
+
+    - name: Get url
+      uri:
+        url: "{{ jenkins_host }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        method: GET
+        force_basic_auth: yes
+      register: list_artifact
+
+
+    - name: Write all data in json
+      copy:
+        content="{{ list_artifact }}"
+        dest=/ansible-cicd/files/list_artifacts.json
+
+
+    - name: Get path and filename
+      shell: |
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/list_artifacts.json | awk '!a[$0]++' > /ansible-cicd/files/path.txt
+
+
+    - name: Get whl filename
+      shell: |
+        grep -oE "[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/path.txt | awk '!a[$0]++' > /ansible-cicd/files/filename.txt
+
+
 - name: Deploying
   become: yes
   hosts: localhost
 
   vars:
-    jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/api/json?tree=artifacts%5BrelativePath$
+    jenkins_wheel: http://${jenkins-test_public_ip}/job/cicd/lastSuccessfulBuild/
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_dest: /ansible-cicd/"{{ latest_artifact }}"
+    whl_dest: /ansible-cicd/
 
   tasks:
+
     - name: Intsall url
       uri:
-        url: "{{ jenkins_host }}"
+        url: "{{ jenkins_wheel }}/artifact/{{  lookup('file', 'path.txt') }}"
         user: "{{ jenkins_user }}"
         password: "{{ jenkins_password }}"
         dest: "{{ whl_dest }}"
         method: GET
         force_basic_auth: yes
         return_content: yes
-      register: list_artifact
 
-    - name: Write in json
-      copy:
-        content="{{ list_artifact }}"
-        dest=/ansible-cicd/list.json
-
-    - name: Get list
-      shell: |
-        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" list.json | awk '!a[$0]++' > list.txt
-      register: latest_artifact
 
     - name: Install wheel package
-      command: pip3 install "{{ latest_artifact }}"
+      command: pip3 install "{{ lookup('file', 'filename.txt') }}"

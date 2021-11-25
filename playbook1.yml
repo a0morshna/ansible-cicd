@@ -5,11 +5,12 @@
 
   vars:
 
-    jenkins_host: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/api/json?tree=artifacts%5BrelativePath$
+    jenkins_host:  http://${jenkins-test_public_ip}/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_test_dest: /ansible-cicd/test/"{{ latest_artifact }}"
-    whl_dest: /ansible-cicd/"{{ latest_artifact }}"
+    whl_test_dest: /ansible-cicd/test/
+    whl_dest: /ansible-cicd/
+
 
   tasks:
 
@@ -18,53 +19,64 @@
         path: /ansible-cicd/test
         state: directory
 
-    - name: Intsall url
+
+    - name: Get url
       uri:
         url: "{{ jenkins_host }}"
         user: "{{ jenkins_user }}"
         password: "{{ jenkins_password }}"
-        dest: "{{ whl_dest }}"
         method: GET
         force_basic_auth: yes
-        return_content: yes
       register: list_artifact
 
-    - name: Write in json
+
+    - name: Write all data in json
       copy:
         content="{{ list_artifact }}"
-        dest=/ansible-cicd/list.json
+        dest=/ansible-cicd/files/list_artifacts.json
 
-    - name: Get list
+
+    - name: Get path and filename
       shell: |
-        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" list.json | awk '!a[$0]++' > list.txt
-      register: latest_artifact
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/list_artifacts.json | awk '!a[$0]++' > /ansible-cicd/files/path.txt
+
+
+    - name: Get whl filename
+      shell: |
+        grep -oE "[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/path.txt | awk '!a[$0]++' > /ansible-cicd/files/filename.txt
+
 
     - name: Install wheel package
       shell: |
         cd /ansible-cicd/
-        pip3 install "{{ latest_artifact }}"
+        pip3 install "{{ lookup('file', 'filename.txt') }}"
+
 
     - name: Get checksum of test file
       stat:
-        path: "{{ whl_test_dest }}"
+        path: "/ansible-cicd/test/{{ lookup('file', 'filename.txt') }}"
         checksum: sha1
         get_checksum: yes
       register: test_file_checksum
+
 
     - name: Test SHA
       set_fact:
          testsha1: "{{ test_file_checksum.stat.checksum }}"
 
+
     - name: Get checksum of existing file
       stat:
-        path: "{{ whl_dest }}"
+        path: "/ansible-cicd/{{ lookup('file', 'filename.txt') }}"
         checksum: sha1
         get_checksum: yes
       register: exist_file_checksum
 
+
     - name: Exist SHA
       set_fact:
         existsha1: "{{ exist_file_checksum.stat.checksum }}"
+
 
     - name: Comparing if equal
       when: testsha1 == existsha1
@@ -72,10 +84,11 @@
         cd /ansible-cicd
         sudo rm -r test
 
+
     - name: Comparing if not equal
       when: testsha1 != existsha1
       shell: |
         cd /ansible-cicd
-        sudo rm "{{ latest_artifact }}"
+        sudo rm "{ lookup('file', 'filename.txt') }}"
         cd /ansible-cicd/test
-        mv "{{ latest_artifact }}" /ansible
+        mv "{{ lookup('file', 'filename.txt') }}" /ansible-cicd
