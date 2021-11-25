@@ -5,7 +5,7 @@
   hosts: localhost
 
   vars:
-    jenkins_host:  http://${jenkins-test_public_ip}/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
+    jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
     jenkins_user: ${login}
     jenkins_password: ${password}
     whl_dest: /ansible-cicd/files/
@@ -49,7 +49,7 @@
   hosts: localhost
 
   vars:
-    jenkins_wheel: http://${jenkins-test_public_ip}/job/cicd/lastSuccessfulBuild/
+    jenkins_wheel: http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/
     jenkins_user: ${login}
     jenkins_password: ${password}
     whl_dest: /ansible-cicd/

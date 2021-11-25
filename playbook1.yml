@@ -5,7 +5,7 @@
 
   vars:
 
-    jenkins_host:  http://${jenkins-test_public_ip}/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
+    jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
     jenkins_user: ${login}
     jenkins_password: ${password}
     whl_test_dest: /ansible-cicd/test/
