@@ -41,7 +41,7 @@
     jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_dest: /ansible-cicd/
+    whl_dest: /ansible-cicd/{{ lookup('file', 'filename.txt') }}
 
   tasks:
 
@@ -79,7 +79,7 @@
 
     - name: Check if .whl exist in this folder
       stat:
-        path: "/ansible-cicd/{{ lookup('file', 'filename.txt') }}"
+        path: "{{ whl_dest }}"
       register: file_details
 
 
