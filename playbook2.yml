@@ -1,6 +1,6 @@
 ---
 
-- name: Getting variables
+- name: Get filename
   become: yes
   hosts: localhost
 
@@ -18,7 +18,7 @@
         state: directory
 
 
-    - name: Get url
+    - name: Get response data
       uri:
         url: "{{ jenkins_host }}"
         user: "{{ jenkins_user }}"
@@ -28,7 +28,7 @@
       register: list_artifact
 
 
-    - name: Write all data in json
+    - name: Write response data in json
       copy:
         content="{{ list_artifact }}"
         dest=/ansible-cicd/files/list_artifacts.json
@@ -44,7 +44,8 @@
         grep -oE "[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/path.txt | awk '!a[$0]++' > /ansible-cicd/files/filename.txt
 
 
-- name: Deploying
+
+- name: Instal new version
   become: yes
   hosts: localhost
 
@@ -56,7 +57,7 @@
 
   tasks:
 
-    - name: Intsall url
+    - name: Get data
       uri:
         url: "{{ jenkins_wheel }}/artifact/{{  lookup('file', 'path.txt') }}"
         user: "{{ jenkins_user }}"

@@ -1,18 +1,20 @@
 ---
-- name: Check checksum
+- name: Register files
   become: yes
   hosts: localhost
+
 
   vars:
 
     jenkins_host:  http://${jenkins-test_public_ip}:8080/job/cicd/lastStableBuild/api/json?tree=artifacts%5BrelativePath%5D
     jenkins_user: ${login}
     jenkins_password: ${password}
-    whl_test_dest: /ansible-cicd/test/{{ lookup('file', 'filename_test.txt') }}
-    whl_dest: /ansible-cicd/{{ lookup('file', 'filename.txt') }}
+    whl_test_dest: /ansible-cicd/test/
+    whl_dest: /ansible-cicd/
 
 
   tasks:
+
 
     - name: Make test dir
       file:
@@ -20,82 +22,119 @@
         state: directory
 
 
-    - name: Get url
+    - name: Get url response
       uri:
         url: "{{ jenkins_host }}"
         user: "{{ jenkins_user }}"
         password: "{{ jenkins_password }}"
+        dest: "{{ whl_test_dest }}"
         method: GET
         force_basic_auth: yes
-      register: list_artifact
+      register: list_test_artifacts
 
-    - name: Write all data in json
+
+    - name: Write response data in json
       copy:
-        content="{{ list_artifact }}"
-        dest=/ansible-cicd/files/list_test_artifacts.json
+        content="{{ list_test_artifacts }}"
+        dest=/ansible-cicd/files/pl1_list_artifacts.json
 
 
     - name: Get path and filename
       shell: |
-        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/list_test_artifacts.json | awk '!a[$0]++' > /ansible-cicd/files/path_test.txt
+        grep -oE "[0-9]+/+[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/pl1_list_artifacts.json | awk '!a[$0]++' > /ansible-cicd/files/pl1_path_test.txt
 
 
     - name: Get whl filename
       shell: |
-        grep -oE "[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/path_test.txt | awk '!a[$0]++' > /ansible-cicd/files/filename_test.txt
+        grep -oE "[a-zA-Z0-9_.-]+.whl" /ansible-cicd/files/pl1_path_test.txt | awk '!a[$0]++' > /ansible-cicd/files/pl1_filename_test.txt
+
+
+
+- name: Comapre exist file and test file
+  hosts: localhost
+  become: yes
+
+
+  vars :
+
+    jenkins_wheel:  http://${jenkins-test_public_ip}:8080/job/cicd/lastSuccessfulBuild/
+    jenkins_user: ${login}
+    jenkins_password: ${password}
+    whl_test_dest: /ansible-cicd/test/
+    whl_dest: /ansible-cicd/
+
+
+  tasks:
+
+
+    - name: Get response
+      uri:
+        url: "{{ jenkins_wheel }}/artifact/{{  lookup('file', 'pl1_path_test.txt') }}"
+        user: "{{ jenkins_user }}"
+        password: "{{ jenkins_password }}"
+        dest: "{{ whl_test_dest }}"
+        method: GET
+        force_basic_auth: yes
+        return_content: yes
 
 
     - name: Install wheel package
       shell: |
-        cd /ansible-cicd/test/
-        pip3 install "{{ lookup('file', 'filename_test.txt') }}"
+        cd /ansible-cicd/test
+        pip3 install "{{ lookup('file', 'pl1_filename_test.txt') }}"
 
 
-    - name: Get checksum of test file
+    - name: Register test filename
       stat:
         path: "{{ whl_test_dest }}"
       register: test_file
 
 
-    - name: Get checksum of existing file
+    - name: Reqister existing filename
       stat:
         path: "{{ whl_dest }}"
       register: exist_file
 
 
-    - name: Test  SHA
+    - name: Compare files if they equal or not
       shell: |
-        if [ $exist_file -eq $test_file ]
+        if [ $exist_file -ne $test_file  ]
         then
-          echo "True"
-        else
           echo "False"
+        else
+          echo "True"
         fi
       register: result
 
 
     - name: Debug
       debug:
-         var: result
+        var: result
 
 
     - block:
 
-        - name: Comparing if equal
+        - name: Delete previous version
+          shell: |
+            cd /ansible-cicd
+            sudo rm *.whl
+
+
+        - name: If files not equal
+          shell: |
+            cd /ansible-cicd/test
+            mv "{{ lookup('file', 'pl1_filename_test.txt') }}" /ansible-cicd
+            cd /ansible-cicd
+            sudo rm -r test
+
+      when: result.stdout == "False"
+
+
+    - block:
+
+        - name: If files equal
           shell: |
             cd /ansible-cicd
             sudo rm -r test
 
-      when: result == True
-
-
-    - block:
-
-        - name: Comparing if not equal
-          shell: |
-            cd /ansible-cicd
-            sudo rm "{ lookup('file', 'filename.txt') }}"
-            cd /ansible-cicd/test
-            mv "{{ lookup('file', 'filename_test.txt') }}" /ansible-cicd
-
-      when: result == False
+      when: result.stdout == "True"
